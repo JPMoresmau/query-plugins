@@ -1,0 +1,13 @@
+[package]
+name = "query-common"
+version = "0.1.0"
+edition = "2021"
+description = "Helper functions and macros for query plugins"
+authors = ["JP Moresmau <jp@moresmau.fr>"]
+
+[dependencies]
+paste = "1.0.12"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

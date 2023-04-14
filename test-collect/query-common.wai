@@ -1,0 +1,35 @@
+enum parameter-type {
+    type-string,
+    type-timestamp,
+    type-boolean,
+    type-integer,
+    type-decimal,
+}
+
+record parameter {
+    name: string,
+    parameter-type: parameter-type,
+}
+
+record query-metadata {
+    description: string,
+    parameters: list<parameter>,
+}
+
+metadata: func(variables: list<variable>) -> query-metadata
+
+variant value {
+    data-string(string),
+    data-timestamp(string),
+    data-boolean(bool),
+    data-integer(u64),
+    data-decimal(float64),
+}
+
+record variable {
+    name: string,
+    value: value,
+}
+
+
+
