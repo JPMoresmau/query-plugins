@@ -13,7 +13,7 @@ pub struct Query {}
 
 impl crate::query::Query for Query {
     fn metadata() -> QueryMetadata {
-        metadata!("test-collect",
+        metadata!("test plugins collecting results",
         "customer_id" => Integer)
     }
 

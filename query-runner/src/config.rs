@@ -1,7 +1,9 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::{collections::HashMap, io::BufReader};
 
 use anyhow::{anyhow, Result};
+use wasmer::{Module, Store};
+use wasmer_compiler::Engine;
 
 use crate::DBConnection;
 
@@ -22,4 +24,25 @@ pub fn load_connections(path: &str) -> Result<HashMap<String, DBConnection>> {
         connections.insert(name, conn);
     }
     Ok(connections)
+}
+
+pub fn load_plugins(engine: &Engine, path: &str) -> Result<HashMap<String, Module>> {
+    let paths = fs::read_dir(path).unwrap();
+    let store = Store::new(engine);
+    let mut plugins = HashMap::new();
+    for path in paths {
+        let path = path?;
+       
+
+        let module = Module::from_file(&store, path.path())?;
+        let name = path
+            .path()
+            .file_stem()
+            .ok_or(anyhow!("no file name!"))?
+            .to_str()
+            .ok_or(anyhow!("Cannot get file name"))?
+            .to_owned();
+        plugins.insert(name, module);
+    }
+    Ok(plugins)
 }

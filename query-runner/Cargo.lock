@@ -813,6 +813,7 @@ dependencies = [
  "serde_yaml",
  "wai-bindgen-wasmer",
  "wasmer",
+ "wasmer-compiler",
  "wasmer-compiler-llvm",
 ]
 
