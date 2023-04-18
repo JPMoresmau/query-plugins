@@ -80,6 +80,14 @@ pub(crate) fn execute(connection: &Connection, state: &mut ExecutionState) -> Re
                     name,
                     value: ValueResult::DataString(row.get(ix)?),
                 }),
+                "BOOL" => result_one.push(Variable {
+                    name,
+                    value: ValueResult::DataBoolean(row.get(ix)?),
+                }),
+                "REAL" => result_one.push(Variable {
+                    name,
+                    value: ValueResult::DataDecimal(row.get(ix)?),
+                }),
                 _ => return Err(anyhow!("unsupported type {typ}")),
             }
         }

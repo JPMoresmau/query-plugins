@@ -106,6 +106,82 @@ fn sqlite_text() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn sqlite_bool() -> Result<()> {
+    let st = test_state()?;
+
+    let DBConnection::SqliteConnection(conn) = st.get_connection("memory")?;
+    conn.execute(
+        "CREATE TABLE Orders (
+            order_id     BOOL,
+            customer_id  INTEGER NOT NULL
+        )",
+        (),
+    )?;
+    conn.execute(
+        "INSERT INTO Orders (order_id, customer_id) VALUES (?1, ?2), (?3, ?4)",
+        (true, 123, false, 123),
+    )?;
+
+    let mut variables = HashMap::new();
+    variables.insert("customer_id".to_string(), "123".to_string());
+    let res = st.run_untyped("test_collect", "memory", &variables)?;
+    let mut res = res.unwrap();
+    assert_eq!(2, res.len());
+    let mut v = Vec::new();
+    while let Some(mut row) = res.pop() {
+        assert_eq!(1, row.len());
+        let vr = row.pop().unwrap();
+        assert_eq!("order_id", &vr.name);
+        match vr.value {
+            query_runner::ValueResult::DataBoolean(s) => v.push(s),
+            _ => panic!("unxpected result {:?}", vr.value),
+        }
+    }
+    assert_eq!(2, v.len());
+    assert!(v.contains(&true));
+    assert!(v.contains(&false));
+    Ok(())
+}
+
+#[test]
+fn sqlite_decimal() -> Result<()> {
+    let st = test_state()?;
+
+    let DBConnection::SqliteConnection(conn) = st.get_connection("memory")?;
+    conn.execute(
+        "CREATE TABLE Orders (
+            order_id     REAL,
+            customer_id  INTEGER NOT NULL
+        )",
+        (),
+    )?;
+    conn.execute(
+        "INSERT INTO Orders (order_id, customer_id) VALUES (?1, ?2), (?3, ?4)",
+        (123.4, 123, 123.5, 123),
+    )?;
+
+    let mut variables = HashMap::new();
+    variables.insert("customer_id".to_string(), "123".to_string());
+    let res = st.run_untyped("test_collect", "memory", &variables)?;
+    let mut res = res.unwrap();
+    assert_eq!(2, res.len());
+    let mut v = Vec::new();
+    while let Some(mut row) = res.pop() {
+        assert_eq!(1, row.len());
+        let vr = row.pop().unwrap();
+        assert_eq!("order_id", &vr.name);
+        match vr.value {
+            query_runner::ValueResult::DataDecimal(s) => v.push(s),
+            _ => panic!("unxpected result {:?}", vr.value),
+        }
+    }
+    assert_eq!(2, v.len());
+    assert!(v.contains(&123.4));
+    assert!(v.contains(&123.5));
+    Ok(())
+}
+
 fn test_state() -> Result<State> {
     State::load_from_disk()
 }
