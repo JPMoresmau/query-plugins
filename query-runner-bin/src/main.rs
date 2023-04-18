@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::collections::HashMap;
+
+use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 
 use query_runner::*;
@@ -31,7 +33,9 @@ enum Command {
         /// Name of the connection to use
         #[arg(short, long)]
         connection: String,
-    }
+        /// Parameters in name=value format
+        params: Vec<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -66,8 +70,33 @@ fn main() -> Result<()> {
                 }
             }
         },
-        Command::Run {plugin: _plugin, connection: _connection} =>  {
-            unimplemented!("run")
+        Command::Run {
+            plugin,
+            connection,
+            params,
+        } => {
+            let st = State::load_from_disk()?;
+            let mut variables = HashMap::new();
+            for p in params.iter() {
+                if let Some((name, value)) = p.split_once('=') {
+                    variables.insert(name, value);
+                } else {
+                    return Err(anyhow!("{p} is not a valid name=value parameter"));
+                }
+            }
+            let res = st.run_untyped(&plugin, &connection, &variables)?;
+            match res {
+                None => println!("<no result>"),
+                Some(res) => {
+                    println!("{}", res.names.join(" | "));
+                    println!("--------------------------");
+                    for row in res.values {
+                        let line: Vec<String> = row.iter().map(|v| format!("{v}")).collect();
+                        println!("{}", line.join(" | "));
+                    }
+                    println!("--------------------------");
+                }
+            }
         }
     }
     Ok(())

@@ -1,5 +1,5 @@
 
-use {parameter, query-metadata, variable} from query-common
+use {parameter, query-metadata, query-result, variable} from query-common
 
 metadata: func() -> query-metadata
 
@@ -10,7 +10,7 @@ resource execution {
 
     variables: func() -> list<variable>
 
-    row: func(data: list<variable>) -> option<list<list<variable>>>
+    row: func(data: list<variable>) -> option<query-result>
 
-    end: func() -> option<list<list<variable>>>
+    end: func(columns: list<string>) -> option<query-result>
 }

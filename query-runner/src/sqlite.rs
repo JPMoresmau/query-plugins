@@ -24,7 +24,10 @@ pub(crate) fn new_connection(value: Value) -> Result<DBConnection> {
 }
 
 /// Execute a query and return the result.
-pub(crate) fn execute(connection: &Connection, state: &mut ExecutionState) -> Result<QueryResult> {
+pub(crate) fn execute(
+    connection: &Connection,
+    state: &mut ExecutionState,
+) -> Result<Option<QueryResult>> {
     // Get the query SQL.
     let query = state
         .query
@@ -95,5 +98,10 @@ pub(crate) fn execute(connection: &Connection, state: &mut ExecutionState) -> Re
         let res = state.row(result_one)?;
         result = add_result(result, res);
     }
-    Ok(result)
+    // End.
+    let names: Vec<&str> = columns.iter().map(|(n, _)| n.as_str()).collect();
+    let end = state
+        .query
+        .execution_end(&mut state.store, &state.execution, &names)?;
+    Ok(add_result(result, end))
 }

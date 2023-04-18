@@ -32,7 +32,7 @@ impl crate::query::Query for Query {
 pub struct Execution {
     query_string: String,
     variables: Vec<Variable>,
-    data: RefCell<Vec<Vec<Variable>>>,
+    data: RefCell<Vec<Vec<Value>>>,
 }
 
 impl crate::query::Execution for Execution {
@@ -44,12 +44,17 @@ impl crate::query::Execution for Execution {
         self.variables.clone()
     }
 
-    fn row(&self, data: Vec<Variable>) -> Option<Vec<Vec<Variable>>> {
-        self.data.borrow_mut().push(data);
+    fn row(&self, data: Vec<Variable>) -> Option<QueryResult> {
+        self.data
+            .borrow_mut()
+            .push(data.into_iter().map(|v| v.value).collect());
         None
     }
 
-    fn end(&self) -> Option<Vec<Vec<Variable>>> {
-        Some(self.data.borrow_mut().drain(..).collect())
+    fn end(&self, columns: Vec<String>) -> Option<QueryResult> {
+        Some(QueryResult {
+            names: columns,
+            values: self.data.borrow_mut().drain(..).collect(),
+        })
     }
 }

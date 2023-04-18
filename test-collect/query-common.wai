@@ -16,8 +16,6 @@ record query-metadata {
     parameters: list<parameter>,
 }
 
-metadata: func(variables: list<variable>) -> query-metadata
-
 variant value {
     data-string(string),
     data-timestamp(string),
@@ -29,6 +27,11 @@ variant value {
 record variable {
     name: string,
     value: value,
+}
+
+record query-result {
+    names: list<string>,
+    values: list<list<value>>
 }
 
 

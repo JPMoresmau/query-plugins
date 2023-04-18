@@ -4,7 +4,7 @@ use wasmer::{imports, Module, Store};
 use wasmer_compiler::*;
 use wasmer_compiler_llvm::LLVM;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use anyhow::{anyhow, Result};
 
@@ -35,7 +35,7 @@ impl DBConnection {
     }
 
     /// Execute the query against the DB and returns the result.
-    pub(crate) fn execute(&self, state: &mut ExecutionState) -> Result<QueryResult> {
+    pub(crate) fn execute(&self, state: &mut ExecutionState) -> Result<Option<QueryResult>> {
         match self {
             DBConnection::SqliteConnection(connection) => sqlite::execute(connection, state),
         }
@@ -43,15 +43,18 @@ impl DBConnection {
 }
 
 /// An optional list of rows as result.
-pub type QueryResult = Option<Vec<Vec<VariableResult>>>;
+//pub type QueryResult = Option<Vec<Vec<VariableResult>>>;
 
 /// Add two results together.
-pub(crate) fn add_result(qr1: QueryResult, qr2: QueryResult) -> QueryResult {
+pub(crate) fn add_result(
+    qr1: Option<QueryResult>,
+    qr2: Option<QueryResult>,
+) -> Option<QueryResult> {
     match (qr1, qr2) {
         (None, qr2) => qr2,
         (qr1, None) => qr1,
         (Some(mut vec1), Some(mut vec2)) => {
-            vec1.append(&mut vec2);
+            vec1.values.append(&mut vec2.values);
             Some(vec1)
         }
     }
@@ -85,8 +88,8 @@ impl State {
         &self,
         plugin: &str,
         connection: &str,
-        variables: &HashMap<String, String>,
-    ) -> Result<QueryResult> {
+        variables: &HashMap<&str, &str>,
+    ) -> Result<Option<QueryResult>> {
         let module = self.get_plugin(plugin)?;
         let params = self.get_parameters(module)?;
         let values = parse_parameter_values(&params, variables)?;
@@ -99,7 +102,7 @@ impl State {
         plugin: &str,
         connection: &str,
         variables: &[VariableParam],
-    ) -> Result<QueryResult> {
+    ) -> Result<Option<QueryResult>> {
         let module = self.get_plugin(plugin)?;
         self.run(connection, module, variables)
     }
@@ -110,7 +113,7 @@ impl State {
         connection: &str,
         module: &Module,
         variables: &[VariableParam],
-    ) -> Result<QueryResult> {
+    ) -> Result<Option<QueryResult>> {
         let connection = self.get_connection(connection)?;
 
         let mut store = Store::new(&self.engine);
@@ -123,10 +126,7 @@ impl State {
             query,
             execution,
         };
-        let result = connection.execute(&mut es)?;
-        // End.
-        let end = es.query.execution_end(&mut es.store, &es.execution)?;
-        Ok(add_result(result, end))
+        connection.execute(&mut es)
     }
 
     /// Get plugin module by name.
@@ -172,7 +172,7 @@ pub(crate) struct ExecutionState {
 
 impl ExecutionState {
     /// Send a row to the execution.
-    fn row(&mut self, row: Vec<Variable>) -> Result<QueryResult> {
+    fn row(&mut self, row: Vec<Variable>) -> Result<Option<QueryResult>> {
         let params: Vec<VariableParam<'_>> = row.iter().map(Variable::as_param).collect();
         let r = self
             .query
@@ -200,6 +200,18 @@ impl<'a> Variable<'a> {
                 ValueResult::DataString(s) => ValueParam::DataString(s),
                 ValueResult::DataTimestamp(t) => ValueParam::DataTimestamp(t),
             },
+        }
+    }
+}
+
+impl Display for ValueResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueResult::DataBoolean(b) => write!(f, "{b}"),
+            ValueResult::DataDecimal(d) => write!(f, "{d}"),
+            ValueResult::DataInteger(i) => write!(f, "{i}"),
+            ValueResult::DataString(s) => write!(f, "{s}"),
+            ValueResult::DataTimestamp(s) => write!(f, "{s}"),
         }
     }
 }

@@ -47,18 +47,19 @@ fn sqlite_integer() -> Result<()> {
     )?;
 
     let mut variables = HashMap::new();
-    variables.insert("customer_id".to_string(), "123".to_string());
+    variables.insert("customer_id", "123");
     let res = st.run_untyped("test_collect", "memory", &variables)?;
-    let res = res.unwrap();
-    assert_eq!(2, res.len());
+    let mut res = res.unwrap();
+    assert_eq!(1, res.names.len());
+    assert_eq!("order_id", res.names[0]);
+    assert_eq!(2, res.values.len());
     let mut v = Vec::new();
-    for row in res {
+    while let Some(mut row) = res.values.pop() {
         assert_eq!(1, row.len());
-        let vr = row.get(0).unwrap();
-        assert_eq!("order_id", &vr.name);
-        match vr.value {
+        let vr = row.pop().unwrap();
+        match vr {
             query_runner::ValueResult::DataInteger(i) => v.push(i),
-            _ => panic!("unxpected result {:?}", vr.value),
+            _ => panic!("unxpected result {:?}", vr),
         }
     }
     assert_eq!(2, v.len());
@@ -85,18 +86,19 @@ fn sqlite_text() -> Result<()> {
     )?;
 
     let mut variables = HashMap::new();
-    variables.insert("customer_id".to_string(), "123".to_string());
+    variables.insert("customer_id", "123");
     let res = st.run_untyped("test_collect", "memory", &variables)?;
     let mut res = res.unwrap();
-    assert_eq!(2, res.len());
+    assert_eq!(1, res.names.len());
+    assert_eq!("order_id", res.names[0]);
+    assert_eq!(2, res.values.len());
     let mut v = Vec::new();
-    while let Some(mut row) = res.pop() {
+    while let Some(mut row) = res.values.pop() {
         assert_eq!(1, row.len());
         let vr = row.pop().unwrap();
-        assert_eq!("order_id", &vr.name);
-        match vr.value {
+        match vr {
             query_runner::ValueResult::DataString(s) => v.push(s),
-            _ => panic!("unxpected result {:?}", vr.value),
+            _ => panic!("unxpected result {:?}", vr),
         }
     }
     assert_eq!(2, v.len());
@@ -124,18 +126,19 @@ fn sqlite_bool() -> Result<()> {
     )?;
 
     let mut variables = HashMap::new();
-    variables.insert("customer_id".to_string(), "123".to_string());
+    variables.insert("customer_id", "123");
     let res = st.run_untyped("test_collect", "memory", &variables)?;
     let mut res = res.unwrap();
-    assert_eq!(2, res.len());
+    assert_eq!(1, res.names.len());
+    assert_eq!("order_id", res.names[0]);
+    assert_eq!(2, res.values.len());
     let mut v = Vec::new();
-    while let Some(mut row) = res.pop() {
+    while let Some(mut row) = res.values.pop() {
         assert_eq!(1, row.len());
         let vr = row.pop().unwrap();
-        assert_eq!("order_id", &vr.name);
-        match vr.value {
+        match vr {
             query_runner::ValueResult::DataBoolean(s) => v.push(s),
-            _ => panic!("unxpected result {:?}", vr.value),
+            _ => panic!("unxpected result {:?}", vr),
         }
     }
     assert_eq!(2, v.len());
@@ -162,18 +165,20 @@ fn sqlite_decimal() -> Result<()> {
     )?;
 
     let mut variables = HashMap::new();
-    variables.insert("customer_id".to_string(), "123".to_string());
+    variables.insert("customer_id", "123");
     let res = st.run_untyped("test_collect", "memory", &variables)?;
     let mut res = res.unwrap();
-    assert_eq!(2, res.len());
+    assert_eq!(1, res.names.len());
+    assert_eq!("order_id", res.names[0]);
+    assert_eq!(2, res.values.len());
     let mut v = Vec::new();
-    while let Some(mut row) = res.pop() {
+
+    while let Some(mut row) = res.values.pop() {
         assert_eq!(1, row.len());
         let vr = row.pop().unwrap();
-        assert_eq!("order_id", &vr.name);
-        match vr.value {
+        match vr {
             query_runner::ValueResult::DataDecimal(s) => v.push(s),
-            _ => panic!("unxpected result {:?}", vr.value),
+            _ => panic!("unxpected result {:?}", vr),
         }
     }
     assert_eq!(2, v.len());

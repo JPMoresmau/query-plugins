@@ -1,3 +1,4 @@
+// Types of input parameters.
 enum parameter-type {
     type-string,
     type-timestamp,
@@ -6,18 +7,21 @@ enum parameter-type {
     type-decimal,
 }
 
+// Input parameters.
 record parameter {
     name: string,
     parameter-type: parameter-type,
 }
 
+// Query information.
 record query-metadata {
+    // Description.
     description: string,
+    // Input parameters.
     parameters: list<parameter>,
 }
 
-metadata: func(variables: list<variable>) -> query-metadata
-
+// Actual values.
 variant value {
     data-string(string),
     data-timestamp(string),
@@ -26,9 +30,17 @@ variant value {
     data-decimal(float64),
 }
 
+// Name and value.
 record variable {
     name: string,
     value: value,
+}
+
+// Result of a query, with the names of the columns
+// and the actual values.
+record query-result {
+    names: list<string>,
+    values: list<list<value>>
 }
 
 

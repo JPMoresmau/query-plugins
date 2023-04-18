@@ -1,16 +1,24 @@
 
-use {parameter, query-metadata, variable} from query-common
+use {parameter, query-metadata, query-result, variable} from query-common
 
+// Get the metadata of the query.
 metadata: func() -> query-metadata
 
+// Start the query processing with the given variables.
 start: func(variables: list<variable>) -> execution
 
+// Encapsulates the query row processing.
 resource execution {
+    // The actual query to run.
     query-string: func() -> string
 
+    // The variables to use in the query.
     variables: func() -> list<variable>
 
-    row: func(data: list<variable>) -> option<list<list<variable>>>
+    // Callback on each data row, returning potential intermediate results.
+    row: func(data: list<variable>) -> option<query-result>
 
-    end: func() -> option<list<list<variable>>>
+    // Callback on query end, returning potential final results.
+    // Columns are passed in case no data was returned.
+    end: func(columns: list<string>) -> option<query-result>
 }
