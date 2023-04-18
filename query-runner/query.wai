@@ -1,0 +1,16 @@
+
+use {parameter, query-metadata, variable} from query-common
+
+metadata: func() -> query-metadata
+
+start: func(variables: list<variable>) -> execution
+
+resource execution {
+    query-string: func() -> string
+
+    variables: func() -> list<variable>
+
+    row: func(data: list<variable>) -> option<list<list<variable>>>
+
+    end: func() -> option<list<list<variable>>>
+}

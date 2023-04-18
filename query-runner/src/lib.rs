@@ -1,26 +1,74 @@
-use wasmer::Module;
+//! Main library code.
+
+use wasmer::{imports, Module, Store};
 use wasmer_compiler::*;
 use wasmer_compiler_llvm::LLVM;
 
 use std::collections::HashMap;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 mod config;
 pub use config::{load_connections, load_plugins};
+mod parse;
+use parse::parse_parameter_values;
 mod sqlite;
 
+wai_bindgen_wasmer::import!("query.wai");
+
+pub use crate::query::*;
+
+/// Only supported database for now.
+const SQLITE: &str = "sqlite";
+
+/// Connections to databases.
 pub enum DBConnection {
     SqliteConnection(rusqlite::Connection),
 }
 
+impl DBConnection {
+    /// Type of connection.
+    pub fn db_type(&self) -> &'static str {
+        match self {
+            DBConnection::SqliteConnection(..) => SQLITE,
+        }
+    }
+
+    /// Execute the query against the DB and returns the result.
+    pub(crate) fn execute(&self, state: &mut ExecutionState) -> Result<QueryResult> {
+        match self {
+            DBConnection::SqliteConnection(connection) => sqlite::execute(connection, state),
+        }
+    }
+}
+
+/// An optional list of rows as result.
+pub type QueryResult = Option<Vec<Vec<VariableResult>>>;
+
+/// Add two results together.
+pub(crate) fn add_result(qr1: QueryResult, qr2: QueryResult) -> QueryResult {
+    match (qr1, qr2) {
+        (None, qr2) => qr2,
+        (qr1, None) => qr1,
+        (Some(mut vec1), Some(mut vec2)) => {
+            vec1.append(&mut vec2);
+            Some(vec1)
+        }
+    }
+}
+
+/// Keep general engine state.
 pub struct State {
+    /// Connections by name.
     pub connections: HashMap<String, DBConnection>,
+    /// WASM Engine.
     pub engine: Engine,
+    /// Plugins by name.
     pub plugins: HashMap<String, Module>,
 }
 
 impl State {
+    /// Load state from local files.
     pub fn load_from_disk() -> Result<State> {
         let connections = load_connections("config/connections.yaml")?;
         let engine = build_engine();
@@ -31,9 +79,127 @@ impl State {
             plugins,
         })
     }
+
+    /// Run a plugin with untyped parameters.
+    pub fn run_untyped(
+        &self,
+        plugin: &str,
+        connection: &str,
+        variables: &HashMap<String, String>,
+    ) -> Result<QueryResult> {
+        let module = self.get_plugin(plugin)?;
+        let params = self.get_parameters(module)?;
+        let values = parse_parameter_values(&params, variables)?;
+        self.run(connection, module, &values)
+    }
+
+    /// Run a plugin with typed parameters.
+    pub fn run_typed(
+        &self,
+        plugin: &str,
+        connection: &str,
+        variables: &[VariableParam],
+    ) -> Result<QueryResult> {
+        let module = self.get_plugin(plugin)?;
+        self.run(connection, module, variables)
+    }
+
+    /// Run a module with the given variables.
+    fn run(
+        &self,
+        connection: &str,
+        module: &Module,
+        variables: &[VariableParam],
+    ) -> Result<QueryResult> {
+        let connection = self.get_connection(connection)?;
+
+        let mut store = Store::new(&self.engine);
+        let mut imports = imports! {};
+        let (query, _instance) = Query::instantiate(&mut store, module, &mut imports)?;
+        let execution = query.start(&mut store, variables)?;
+
+        let mut es = ExecutionState {
+            store,
+            query,
+            execution,
+        };
+        let result = connection.execute(&mut es)?;
+        // End.
+        let end = es.query.execution_end(&mut es.store, &es.execution)?;
+        Ok(add_result(result, end))
+    }
+
+    /// Get plugin module by name.
+    pub fn get_plugin(&self, plugin: &str) -> Result<&Module> {
+        self.plugins
+            .get(plugin)
+            .ok_or(anyhow!("no plugin named {plugin} registered"))
+    }
+
+    /// Get parameters for a module.
+    pub fn get_parameters(&self, module: &Module) -> Result<Vec<Parameter>> {
+        let mut store = Store::new(&self.engine);
+        let mut imports = imports! {};
+        let (query, _instance) = Query::instantiate(&mut store, module, &mut imports)?;
+
+        let metadata = query.metadata(&mut store)?;
+        Ok(metadata.parameters)
+    }
+
+    /// Get a connection by name.
+    pub fn get_connection(&self, connection: &str) -> Result<&DBConnection> {
+        self.connections
+            .get(connection)
+            .ok_or(anyhow!("no connection named {connection} registered"))
+    }
 }
 
+/// Build a new WASM engine.
 pub fn build_engine() -> Engine {
     let compiler_config = LLVM::default();
     EngineBuilder::new(compiler_config).engine()
+}
+
+/// Stores everything related to one plugin execution.
+pub(crate) struct ExecutionState {
+    /// The store.
+    pub(crate) store: Store,
+    /// The query instance.
+    pub(crate) query: Query,
+    /// The actual execution.
+    pub(crate) execution: Execution,
+}
+
+impl ExecutionState {
+    /// Send a row to the execution.
+    fn row(&mut self, row: Vec<Variable>) -> Result<QueryResult> {
+        let params: Vec<VariableParam<'_>> = row.iter().map(Variable::as_param).collect();
+        let r = self
+            .query
+            .execution_row(&mut self.store, &self.execution, &params)?;
+        Ok(r)
+    }
+}
+
+/// Halfway between `VariableResult` and `VariableParam`:
+/// the name is a reference but the value is owned.
+pub(crate) struct Variable<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) value: ValueResult,
+}
+
+impl<'a> Variable<'a> {
+    /// Converts a Variable to a `VariableParam`, referencing the `Variable` data.
+    fn as_param(&'a self) -> VariableParam<'a> {
+        VariableParam {
+            name: self.name,
+            value: match &self.value {
+                ValueResult::DataBoolean(b) => ValueParam::DataBoolean(*b),
+                ValueResult::DataDecimal(d) => ValueParam::DataDecimal(*d),
+                ValueResult::DataInteger(i) => ValueParam::DataInteger(*i),
+                ValueResult::DataString(s) => ValueParam::DataString(s),
+                ValueResult::DataTimestamp(t) => ValueParam::DataTimestamp(t),
+            },
+        }
+    }
 }

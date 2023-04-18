@@ -1,3 +1,5 @@
+//! Configuration utilities.
+
 use std::fs::{self, File};
 use std::{collections::HashMap, io::BufReader};
 
@@ -7,6 +9,7 @@ use wasmer_compiler::Engine;
 
 use crate::DBConnection;
 
+/// Load connections from the given file.
 pub fn load_connections(path: &str) -> Result<HashMap<String, DBConnection>> {
     let file = BufReader::new(File::open(path)?);
     let values: HashMap<String, serde_yaml::Value> = serde_yaml::from_reader(file)?;
@@ -26,13 +29,13 @@ pub fn load_connections(path: &str) -> Result<HashMap<String, DBConnection>> {
     Ok(connections)
 }
 
+/// Load plugins from the given folder.
 pub fn load_plugins(engine: &Engine, path: &str) -> Result<HashMap<String, Module>> {
     let paths = fs::read_dir(path).unwrap();
     let store = Store::new(engine);
     let mut plugins = HashMap::new();
     for path in paths {
         let path = path?;
-       
 
         let module = Module::from_file(&store, path.path())?;
         let name = path

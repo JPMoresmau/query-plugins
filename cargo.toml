@@ -1,0 +1,6 @@
+[workspace]
+members = ["query-common", "query-runner", "query-runner-bin"]
+exclude = ["test-collect"]
+
+[workspace.dependencies]
+anyhow = "1.0.70"
