@@ -43,6 +43,24 @@ fn parse_value<'a>(typ: &ParameterType, value: &'a str) -> Result<ValueParam<'a>
     }
 }
 
+/// Replace {{param}} by positional index.
+pub(crate) fn positional(
+    prefix: &str,
+    offset: usize,
+    query: &str,
+    params: &[VariableResult],
+) -> String {
+    let mut replaced = query.to_string();
+    for (ix, param) in params.iter().enumerate() {
+        // TODO support spaces between curlies and parameter name?
+        replaced = replaced.replace(
+            &format!("{{{{{}}}}}", param.name),
+            &format!("{prefix}{}", ix + offset),
+        );
+    }
+    replaced
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +89,58 @@ mod tests {
             ValueParam::DataBoolean(false)
         ));
         Ok(())
+    }
+
+    #[test]
+    fn test_positional() {
+        assert_eq!("hello", positional("$", 1, "hello", &[]));
+        assert_eq!(
+            "hello $1",
+            positional(
+                "$",
+                1,
+                "hello {{world}}",
+                &[VariableResult {
+                    name: "world".to_string(),
+                    value: ValueResult::DataBoolean(true)
+                }]
+            )
+        );
+        assert_eq!(
+            "hello $1, how are $2",
+            positional(
+                "$",
+                1,
+                "hello {{world}}, how are {{you}}",
+                &[
+                    VariableResult {
+                        name: "world".to_string(),
+                        value: ValueResult::DataBoolean(true)
+                    },
+                    VariableResult {
+                        name: "you".to_string(),
+                        value: ValueResult::DataBoolean(true)
+                    }
+                ]
+            )
+        );
+        assert_eq!(
+            "hello $2, how are $1",
+            positional(
+                "$",
+                1,
+                "hello {{world}}, how are {{you}}",
+                &[
+                    VariableResult {
+                        name: "you".to_string(),
+                        value: ValueResult::DataBoolean(true)
+                    },
+                    VariableResult {
+                        name: "world".to_string(),
+                        value: ValueResult::DataBoolean(true)
+                    }
+                ]
+            )
+        );
     }
 }

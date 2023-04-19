@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Result};
 use serde_yaml::Value;
 
-use crate::{add_result, DBConnection, ExecutionState, QueryResult, Variable};
+use crate::{add_result, parse::positional, DBConnection, ExecutionState, QueryResult, Variable};
 
 use rusqlite::*;
 
@@ -36,22 +36,20 @@ pub(crate) fn execute(
     let params = state
         .query
         .execution_variables(&mut state.store, &state.execution)?;
+
+    let query = positional("?", 1, &query, &params);
+
     // Prepare statement.
     let mut stmt = connection.prepare(&query).map_err(|op| anyhow!(op))?;
 
     // Bind parameters.
-    for param in params {
-        let idx = stmt.parameter_index(&format!(":{}", param.name))?;
-        if let Some(idx) = idx {
-            match &param.value {
-                ValueResult::DataBoolean(b) => stmt.raw_bind_parameter(idx, b)?,
-                ValueResult::DataDecimal(d) => stmt.raw_bind_parameter(idx, d)?,
-                ValueResult::DataInteger(i) => stmt.raw_bind_parameter(idx, i)?,
-                ValueResult::DataString(s) => stmt.raw_bind_parameter(idx, s)?,
-                ValueResult::DataTimestamp(t) => stmt.raw_bind_parameter(idx, t)?,
-            }
-        } else {
-            return Err(anyhow!("parameter not present in query: {}", param.name));
+    for (idx, param) in params.iter().enumerate() {
+        match &param.value {
+            ValueResult::DataBoolean(b) => stmt.raw_bind_parameter(idx + 1, b)?,
+            ValueResult::DataDecimal(d) => stmt.raw_bind_parameter(idx + 1, d)?,
+            ValueResult::DataInteger(i) => stmt.raw_bind_parameter(idx + 1, i)?,
+            ValueResult::DataString(s) => stmt.raw_bind_parameter(idx + 1, s)?,
+            ValueResult::DataTimestamp(t) => stmt.raw_bind_parameter(idx + 1, t)?,
         }
     }
     // Get columns name and type.

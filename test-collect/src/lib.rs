@@ -20,7 +20,7 @@ impl crate::query::Query for Query {
     fn start(variables: Vec<Variable>) -> Handle<Execution> {
         Execution {
             query_string: String::from(
-                "SELECT order_id FROM Orders WHERE customer_id = :customer_id",
+                "SELECT order_id FROM Orders WHERE customer_id = {{customer_id}}",
             ),
             variables,
             data: RefCell::from(Vec::new()),
