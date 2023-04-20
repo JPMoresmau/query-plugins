@@ -10,6 +10,11 @@ fn load_connections_from_file() -> Result<()> {
         connections.get("memory"),
         Some(DBConnection::SqliteConnection(_))
     ));
+    assert!(connections.contains_key("postgres1"));
+    assert!(matches!(
+        connections.get("postgres1"),
+        Some(DBConnection::PostgresConnection(_))
+    ));
     Ok(())
 }
 

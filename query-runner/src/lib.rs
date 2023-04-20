@@ -13,18 +13,21 @@ mod config;
 pub use config::{load_connections, load_plugins};
 mod parse;
 use parse::parse_parameter_values;
+mod postgres;
 mod sqlite;
 
 wai_bindgen_wasmer::import!("query.wai");
 
 pub use crate::query::*;
 
-/// Only supported database for now.
+/// Only supported databases for now.
 const SQLITE: &str = "sqlite";
+const POSTGRES: &str = "postgres";
 
 /// Connections to databases.
 pub enum DBConnection {
     SqliteConnection(rusqlite::Connection),
+    PostgresConnection(Box<::postgres::config::Config>),
 }
 
 impl DBConnection {
@@ -32,6 +35,7 @@ impl DBConnection {
     pub fn db_type(&self) -> &'static str {
         match self {
             DBConnection::SqliteConnection(..) => SQLITE,
+            DBConnection::PostgresConnection(..) => POSTGRES,
         }
     }
 
@@ -39,6 +43,7 @@ impl DBConnection {
     pub(crate) fn execute(&self, state: &mut ExecutionState) -> Result<Option<QueryResult>> {
         match self {
             DBConnection::SqliteConnection(connection) => sqlite::execute(connection, state),
+            DBConnection::PostgresConnection(config) => crate::postgres::execute(config, state),
         }
     }
 }

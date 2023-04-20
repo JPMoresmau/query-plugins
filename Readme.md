@@ -34,4 +34,4 @@ returned.
 The runtime is a library in [query-runner](query-runner) and a simple command line executable is provided in [query-runner-bin](query-runner-bin).
 Currently it only loads connection information from a [file](query-runner/config/connections.yaml) and plugins from a [folder](query-runner/plugins).
 
-Only sqlite is currently supported as a backing database. This is a very early prototype!
+Only sqlite and postgres (without TLS) are currently supported as a backing databases. This is a very early prototype!

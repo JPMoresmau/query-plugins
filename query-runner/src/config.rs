@@ -22,6 +22,7 @@ pub fn load_connections(path: &str) -> Result<HashMap<String, DBConnection>> {
             .ok_or(anyhow!("db field is not a string"))?;
         let conn = match db {
             "sqlite" => crate::sqlite::new_connection(value)?,
+            "postgres" => crate::postgres::new_connection(value)?,
             _ => return Err(anyhow!("unknown database type {db}")),
         };
         connections.insert(name, conn);
