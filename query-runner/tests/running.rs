@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
-use query_runner::{query::ParameterType, DBConnection, State, ValueResult};
+use query_runner::{
+    query::ParameterType, DBConnection, QueryResult, State, ValueParam, ValueResult,
+};
 
 #[test]
 fn ok_module() -> Result<()> {
@@ -48,23 +50,18 @@ fn sqlite_integer() -> Result<()> {
 
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
-    let res = st.run_untyped("test_collect", "memory", &variables)?;
-    let mut res = res.unwrap();
-    assert_eq!(1, res.names.len());
-    assert_eq!("order_id", res.names[0]);
-    assert_eq!(2, res.values.len());
-    let mut v = Vec::new();
-    while let Some(mut row) = res.values.pop() {
-        assert_eq!(1, row.len());
-        let vr = row.pop().unwrap();
-        match vr {
-            query_runner::ValueResult::DataInteger(i) => v.push(i),
-            _ => panic!("unxpected result {:?}", vr),
-        }
-    }
-    assert_eq!(2, v.len());
-    assert!(v.contains(&Some(1234)));
-    assert!(v.contains(&Some(1235)));
+    let res = st
+        .run_untyped("test_collect", "memory", &variables)?
+        .unwrap();
+    assert_result(
+        &res,
+        &["order_id"],
+        &[
+            &[ValueParam::DataInteger(Some(1234))],
+            &[ValueParam::DataInteger(Some(1235))],
+        ],
+    );
+
     Ok(())
 }
 
@@ -87,23 +84,18 @@ fn sqlite_text() -> Result<()> {
 
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
-    let res = st.run_untyped("test_collect", "memory", &variables)?;
-    let mut res = res.unwrap();
-    assert_eq!(1, res.names.len());
-    assert_eq!("order_id", res.names[0]);
-    assert_eq!(2, res.values.len());
-    let mut v = Vec::new();
-    while let Some(mut row) = res.values.pop() {
-        assert_eq!(1, row.len());
-        let vr = row.pop().unwrap();
-        match vr {
-            query_runner::ValueResult::DataString(s) => v.push(s),
-            _ => panic!("unxpected result {:?}", vr),
-        }
-    }
-    assert_eq!(2, v.len());
-    assert!(v.contains(&Some(String::from("1234"))));
-    assert!(v.contains(&Some(String::from("1235"))));
+    let res = st
+        .run_untyped("test_collect", "memory", &variables)?
+        .unwrap();
+    assert_result(
+        &res,
+        &["order_id"],
+        &[
+            &[ValueParam::DataString(Some("1234"))],
+            &[ValueParam::DataString(Some("1235"))],
+        ],
+    );
+
     Ok(())
 }
 
@@ -126,23 +118,17 @@ fn sqlite_bool() -> Result<()> {
 
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
-    let res = st.run_untyped("test_collect", "memory", &variables)?;
-    let mut res = res.unwrap();
-    assert_eq!(1, res.names.len());
-    assert_eq!("order_id", res.names[0]);
-    assert_eq!(2, res.values.len());
-    let mut v = Vec::new();
-    while let Some(mut row) = res.values.pop() {
-        assert_eq!(1, row.len());
-        let vr = row.pop().unwrap();
-        match vr {
-            query_runner::ValueResult::DataBoolean(s) => v.push(s),
-            _ => panic!("unxpected result {:?}", vr),
-        }
-    }
-    assert_eq!(2, v.len());
-    assert!(v.contains(&Some(true)));
-    assert!(v.contains(&Some(false)));
+    let res = st
+        .run_untyped("test_collect", "memory", &variables)?
+        .unwrap();
+    assert_result(
+        &res,
+        &["order_id"],
+        &[
+            &[ValueParam::DataBoolean(Some(false))],
+            &[ValueParam::DataBoolean(Some(true))],
+        ],
+    );
     Ok(())
 }
 
@@ -165,24 +151,18 @@ fn sqlite_decimal() -> Result<()> {
 
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
-    let res = st.run_untyped("test_collect", "memory", &variables)?;
-    let mut res = res.unwrap();
-    assert_eq!(1, res.names.len());
-    assert_eq!("order_id", res.names[0]);
-    assert_eq!(2, res.values.len());
-    let mut v = Vec::new();
+    let res = st
+        .run_untyped("test_collect", "memory", &variables)?
+        .unwrap();
+    assert_result(
+        &res,
+        &["order_id"],
+        &[
+            &[ValueParam::DataDecimal(Some(123.4))],
+            &[ValueParam::DataDecimal(Some(123.5))],
+        ],
+    );
 
-    while let Some(mut row) = res.values.pop() {
-        assert_eq!(1, row.len());
-        let vr = row.pop().unwrap();
-        match vr {
-            query_runner::ValueResult::DataDecimal(s) => v.push(s),
-            _ => panic!("unxpected result {:?}", vr),
-        }
-    }
-    assert_eq!(2, v.len());
-    assert!(v.contains(&Some(123.4)));
-    assert!(v.contains(&Some(123.5)));
     Ok(())
 }
 
@@ -211,37 +191,65 @@ fn sqlite_null_result() -> Result<()> {
     )?;
     let mut variables = HashMap::new();
     variables.insert("user_name", "john");
-    let res = st.run_untyped("test_collect2", "memory", &variables)?;
-    let res = res.unwrap();
-    assert_eq!(2, res.names.len());
-    assert_eq!("name", res.names[0]);
-    assert_eq!("email", res.names[1]);
-    assert_eq!(1, res.values.len());
-    assert_eq!(2, res.values[0].len());
-    assert!(
-        matches!(&res.values[0][0], ValueResult::DataString(n) if n == &Some("John Doe".to_string()))
-    );
-    assert!(
-        matches!(&res.values[0][1], ValueResult::DataString(n) if n == &Some("john.doe@example.com".to_string()))
+    let res = st
+        .run_untyped("test_collect2", "memory", &variables)?
+        .unwrap();
+    assert_result(
+        &res,
+        &["name", "email"],
+        &[&[
+            ValueParam::DataString(Some("John Doe")),
+            ValueParam::DataString(Some("john.doe@example.com")),
+        ]],
     );
 
     let mut variables = HashMap::new();
     variables.insert("user_name", "jane");
-    let res = st.run_untyped("test_collect2", "memory", &variables)?;
-    let res = res.unwrap();
-    assert_eq!(2, res.names.len());
-    assert_eq!("name", res.names[0]);
-    assert_eq!("email", res.names[1]);
-    assert_eq!(1, res.values.len());
-    assert_eq!(2, res.values[0].len());
-    assert!(
-        matches!(&res.values[0][0], ValueResult::DataString(n) if n == &Some("Jane Doe".to_string()))
+    let res = st
+        .run_untyped("test_collect2", "memory", &variables)?
+        .unwrap();
+    assert_result(
+        &res,
+        &["name", "email"],
+        &[&[
+            ValueParam::DataString(Some("Jane Doe")),
+            ValueParam::DataString(None),
+        ]],
     );
-    assert!(matches!(&res.values[0][1], ValueResult::DataString(n) if n.is_none()));
 
     Ok(())
 }
 
 fn test_state() -> Result<State> {
     State::load_from_disk()
+}
+
+fn assert_result(res: &QueryResult, names: &[&str], values: &[&[ValueParam]]) {
+    assert_eq!(names.len(), res.names.len());
+    for (expected, got) in names.iter().zip(res.names.iter()) {
+        assert_eq!(expected, got)
+    }
+    assert_eq!(values.len(), res.values.len());
+    for (expected, got) in values.iter().zip(res.values.iter()) {
+        assert_eq!(expected.len(), got.len());
+        for (expected_value, got_value) in expected.iter().zip(got.iter()) {
+            match expected_value {
+                ValueParam::DataBoolean(b1) => {
+                    assert!(matches!(got_value, ValueResult::DataBoolean(b2) if b1 == b2))
+                }
+                ValueParam::DataDecimal(d1) => {
+                    assert!(matches!(got_value, ValueResult::DataDecimal(d2) if d1 == d2))
+                }
+                ValueParam::DataInteger(i1) => {
+                    assert!(matches!(got_value, ValueResult::DataInteger(i2) if i1 == i2))
+                }
+                ValueParam::DataString(s1) => assert!(
+                    matches!(got_value, ValueResult::DataString(s2) if s1 == &s2.as_deref())
+                ),
+                ValueParam::DataTimestamp(t1) => assert!(
+                    matches!(got_value, ValueResult::DataTimestamp(t2) if t1 == &t2.as_deref())
+                ),
+            }
+        }
+    }
 }

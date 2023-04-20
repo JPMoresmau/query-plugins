@@ -7,6 +7,7 @@ use wasmer_compiler_llvm::LLVM;
 use std::{collections::HashMap, fmt::Display};
 
 use anyhow::{anyhow, Result};
+use tabled::builder::Builder;
 
 mod config;
 pub use config::{load_connections, load_plugins};
@@ -219,4 +220,15 @@ impl Display for ValueResult {
             ValueResult::DataTimestamp(Some(s)) => write!(f, "{s}"),
         }
     }
+}
+
+/// Format result as a table.
+pub fn table_result(qr: &QueryResult) -> String {
+    let mut builder = Builder::default();
+    builder.set_header(&qr.names);
+    for row in qr.values.iter() {
+        builder.push_record(row.iter().map(|r| format!("{r}")));
+    }
+
+    builder.build().to_string()
 }

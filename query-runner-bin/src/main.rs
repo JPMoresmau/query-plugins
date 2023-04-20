@@ -88,13 +88,7 @@ fn main() -> Result<()> {
             match res {
                 None => println!("<no result>"),
                 Some(res) => {
-                    println!("{}", res.names.join(" | "));
-                    println!("--------------------------");
-                    for row in res.values {
-                        let line: Vec<String> = row.iter().map(|v| format!("{v}")).collect();
-                        println!("{}", line.join(" | "));
-                    }
-                    println!("--------------------------");
+                    println!("{}", table_result(&res));
                 }
             }
         }
