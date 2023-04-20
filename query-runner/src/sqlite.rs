@@ -41,15 +41,16 @@ pub(crate) fn execute(
 
     // Prepare statement.
     let mut stmt = connection.prepare(&query).map_err(|op| anyhow!(op))?;
-
     // Bind parameters.
     for (idx, param) in params.iter().enumerate() {
         match &param.value {
-            ValueResult::DataBoolean(b) => stmt.raw_bind_parameter(idx + 1, b)?,
-            ValueResult::DataDecimal(d) => stmt.raw_bind_parameter(idx + 1, d)?,
-            ValueResult::DataInteger(i) => stmt.raw_bind_parameter(idx + 1, i)?,
-            ValueResult::DataString(s) => stmt.raw_bind_parameter(idx + 1, s)?,
-            ValueResult::DataTimestamp(t) => stmt.raw_bind_parameter(idx + 1, t)?,
+            ValueResult::DataBoolean(Some(b)) => stmt.raw_bind_parameter(idx + 1, b)?,
+            ValueResult::DataDecimal(Some(d)) => stmt.raw_bind_parameter(idx + 1, d)?,
+            ValueResult::DataInteger(Some(i)) => stmt.raw_bind_parameter(idx + 1, i)?,
+            ValueResult::DataString(Some(s)) => stmt.raw_bind_parameter(idx + 1, s)?,
+            ValueResult::DataTimestamp(Some(t)) => stmt.raw_bind_parameter(idx + 1, t)?,
+            // Unbound parameters default to NULL.
+            _ => {}
         }
     }
     // Get columns name and type.
@@ -66,7 +67,6 @@ pub(crate) fn execute(
     let mut rows = stmt.raw_query();
     // final result.
     let mut result = Option::None;
-
     // Loop through all rows.
     while let Some(row) = rows.next()? {
         // Build row.

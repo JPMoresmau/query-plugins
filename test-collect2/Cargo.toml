@@ -1,0 +1,23 @@
+[package]
+name = "test-collect2"
+version = "0.1.0"
+edition = "2021"
+description = "Simple query collector for testing, null values for example"
+authors = ["JP Moresmau <jp@moresmau.fr>"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+paste = "1.0.12"
+query-common = { version = "0.1.0", path = "../query-common" }
+wai-bindgen-rust = "0.2.3"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+
+[package.metadata.wapm]
+namespace = "JPMoresmau"  # The namespace to publish it to
+abi = "none" # How to compile the crate. "none" is "wasm32-unknown-unknown"
+bindings = { wai-version = "0.2.0", exports = "query.wai"}

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
-use query_runner::{query::ParameterType, DBConnection, State};
+use query_runner::{query::ParameterType, DBConnection, State, ValueResult};
 
 #[test]
 fn ok_module() -> Result<()> {
@@ -13,7 +13,7 @@ fn ok_module() -> Result<()> {
 #[test]
 fn err_module() -> Result<()> {
     let st = test_state()?;
-    assert!(st.get_plugin("test_collect2").is_err());
+    assert!(st.get_plugin("test_collect_missing").is_err());
     Ok(())
 }
 
@@ -63,8 +63,8 @@ fn sqlite_integer() -> Result<()> {
         }
     }
     assert_eq!(2, v.len());
-    assert!(v.contains(&1234));
-    assert!(v.contains(&1235));
+    assert!(v.contains(&Some(1234)));
+    assert!(v.contains(&Some(1235)));
     Ok(())
 }
 
@@ -102,9 +102,8 @@ fn sqlite_text() -> Result<()> {
         }
     }
     assert_eq!(2, v.len());
-    // <https://github.com/rust-lang/rust/issues/42671>
-    assert!(v.contains(&String::from("1234")));
-    assert!(v.contains(&String::from("1235")));
+    assert!(v.contains(&Some(String::from("1234"))));
+    assert!(v.contains(&Some(String::from("1235"))));
     Ok(())
 }
 
@@ -142,8 +141,8 @@ fn sqlite_bool() -> Result<()> {
         }
     }
     assert_eq!(2, v.len());
-    assert!(v.contains(&true));
-    assert!(v.contains(&false));
+    assert!(v.contains(&Some(true)));
+    assert!(v.contains(&Some(false)));
     Ok(())
 }
 
@@ -182,8 +181,64 @@ fn sqlite_decimal() -> Result<()> {
         }
     }
     assert_eq!(2, v.len());
-    assert!(v.contains(&123.4));
-    assert!(v.contains(&123.5));
+    assert!(v.contains(&Some(123.4)));
+    assert!(v.contains(&Some(123.5)));
+    Ok(())
+}
+
+#[test]
+fn sqlite_null_result() -> Result<()> {
+    let st = test_state()?;
+
+    let DBConnection::SqliteConnection(conn) = st.get_connection("memory")?;
+    conn.execute(
+        "CREATE TABLE Users (
+            username  TEXT PRIMARY KEY,
+            name  TEXT NOT NULL,
+            email TEXT
+        )",
+        (),
+    )?;
+    conn.execute(
+        "INSERT INTO Users (username, name, email) VALUES (?1, ?2, ?3), (?4, ?5, NULL)",
+        (
+            "john",
+            "John Doe",
+            "john.doe@example.com",
+            "jane",
+            "Jane Doe",
+        ),
+    )?;
+    let mut variables = HashMap::new();
+    variables.insert("user_name", "john");
+    let res = st.run_untyped("test_collect2", "memory", &variables)?;
+    let res = res.unwrap();
+    assert_eq!(2, res.names.len());
+    assert_eq!("name", res.names[0]);
+    assert_eq!("email", res.names[1]);
+    assert_eq!(1, res.values.len());
+    assert_eq!(2, res.values[0].len());
+    assert!(
+        matches!(&res.values[0][0], ValueResult::DataString(n) if n == &Some("John Doe".to_string()))
+    );
+    assert!(
+        matches!(&res.values[0][1], ValueResult::DataString(n) if n == &Some("john.doe@example.com".to_string()))
+    );
+
+    let mut variables = HashMap::new();
+    variables.insert("user_name", "jane");
+    let res = st.run_untyped("test_collect2", "memory", &variables)?;
+    let res = res.unwrap();
+    assert_eq!(2, res.names.len());
+    assert_eq!("name", res.names[0]);
+    assert_eq!("email", res.names[1]);
+    assert_eq!(1, res.values.len());
+    assert_eq!(2, res.values[0].len());
+    assert!(
+        matches!(&res.values[0][0], ValueResult::DataString(n) if n == &Some("Jane Doe".to_string()))
+    );
+    assert!(matches!(&res.values[0][1], ValueResult::DataString(n) if n.is_none()));
+
     Ok(())
 }
 

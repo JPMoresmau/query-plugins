@@ -26,20 +26,22 @@ pub(crate) fn parse_parameter_values<'a>(
 
 fn parse_value<'a>(typ: &ParameterType, value: &'a str) -> Result<ValueParam<'a>> {
     match typ {
-        ParameterType::TypeBoolean => Ok(ValueParam::DataBoolean(
+        ParameterType::TypeBoolean => Ok(ValueParam::DataBoolean(Some(
             value.to_ascii_lowercase() == "true",
-        )),
+        ))),
         ParameterType::TypeDecimal => value
             .parse()
+            .map(Option::Some)
             .map(ValueParam::DataDecimal)
             .map_err(Into::into),
         ParameterType::TypeInteger => value
             .parse()
+            .map(Option::Some)
             .map(ValueParam::DataInteger)
             .map_err(Into::into),
         // TODO parse the timestamp here, as early as possible.
-        ParameterType::TypeTimestamp => Ok(ValueParam::DataTimestamp(value)),
-        ParameterType::TypeString => Ok(ValueParam::DataString(value)),
+        ParameterType::TypeTimestamp => Ok(ValueParam::DataTimestamp(Some(value))),
+        ParameterType::TypeString => Ok(ValueParam::DataString(Some(value))),
     }
 }
 
@@ -70,24 +72,69 @@ mod tests {
     fn test_parse_value_bool() -> Result<()> {
         assert!(matches!(
             parse_value(&ParameterType::TypeBoolean, "true")?,
-            ValueParam::DataBoolean(true)
+            ValueParam::DataBoolean(Some(true))
         ));
         assert!(matches!(
             parse_value(&ParameterType::TypeBoolean, "TRUE")?,
-            ValueParam::DataBoolean(true)
+            ValueParam::DataBoolean(Some(true))
         ));
         assert!(matches!(
             parse_value(&ParameterType::TypeBoolean, "false")?,
-            ValueParam::DataBoolean(false)
+            ValueParam::DataBoolean(Some(false))
         ));
         assert!(matches!(
             parse_value(&ParameterType::TypeBoolean, "FALSE")?,
-            ValueParam::DataBoolean(false)
+            ValueParam::DataBoolean(Some(false))
         ));
         assert!(matches!(
             parse_value(&ParameterType::TypeBoolean, "something")?,
-            ValueParam::DataBoolean(false)
+            ValueParam::DataBoolean(Some(false))
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_value_integer() -> Result<()> {
+        assert!(matches!(
+            parse_value(&ParameterType::TypeInteger, "123")?,
+            ValueParam::DataInteger(Some(123))
+        ));
+        assert!(matches!(
+            parse_value(&ParameterType::TypeInteger, "0")?,
+            ValueParam::DataInteger(Some(0))
+        ));
+        assert!(matches!(
+            parse_value(&ParameterType::TypeInteger, "-123")?,
+            ValueParam::DataInteger(Some(-123))
+        ));
+
+        assert!(parse_value(&ParameterType::TypeInteger, "something").is_err());
+        assert!(parse_value(&ParameterType::TypeInteger, "true").is_err());
+        assert!(parse_value(&ParameterType::TypeInteger, "12.3").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_value_decimal() -> Result<()> {
+        assert!(matches!(
+            parse_value(&ParameterType::TypeDecimal, "123.4")?,
+            ValueParam::DataDecimal(Some(x)) if x == 123.4
+        ));
+        assert!(matches!(
+            parse_value(&ParameterType::TypeDecimal, "0")?,
+            ValueParam::DataDecimal(Some(x)) if x == 0.0
+        ));
+        assert!(matches!(
+            parse_value(&ParameterType::TypeDecimal, "-123.4")?,
+            ValueParam::DataDecimal(Some(x)) if x == -123.4
+        ));
+        assert!(matches!(
+            parse_value(&ParameterType::TypeDecimal, "123")?,
+            ValueParam::DataDecimal(Some(x)) if x == 123.0
+        ));
+
+        assert!(parse_value(&ParameterType::TypeDecimal, "something").is_err());
+        assert!(parse_value(&ParameterType::TypeDecimal, "true").is_err());
         Ok(())
     }
 
@@ -102,7 +149,7 @@ mod tests {
                 "hello {{world}}",
                 &[VariableResult {
                     name: "world".to_string(),
-                    value: ValueResult::DataBoolean(true)
+                    value: ValueResult::DataBoolean(Some(true))
                 }]
             )
         );
@@ -115,11 +162,11 @@ mod tests {
                 &[
                     VariableResult {
                         name: "world".to_string(),
-                        value: ValueResult::DataBoolean(true)
+                        value: ValueResult::DataBoolean(Some(true))
                     },
                     VariableResult {
                         name: "you".to_string(),
-                        value: ValueResult::DataBoolean(true)
+                        value: ValueResult::DataBoolean(Some(true))
                     }
                 ]
             )
@@ -133,11 +180,11 @@ mod tests {
                 &[
                     VariableResult {
                         name: "you".to_string(),
-                        value: ValueResult::DataBoolean(true)
+                        value: ValueResult::DataBoolean(Some(true))
                     },
                     VariableResult {
                         name: "world".to_string(),
-                        value: ValueResult::DataBoolean(true)
+                        value: ValueResult::DataBoolean(Some(true))
                     }
                 ]
             )

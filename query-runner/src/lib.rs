@@ -197,8 +197,8 @@ impl<'a> Variable<'a> {
                 ValueResult::DataBoolean(b) => ValueParam::DataBoolean(*b),
                 ValueResult::DataDecimal(d) => ValueParam::DataDecimal(*d),
                 ValueResult::DataInteger(i) => ValueParam::DataInteger(*i),
-                ValueResult::DataString(s) => ValueParam::DataString(s),
-                ValueResult::DataTimestamp(t) => ValueParam::DataTimestamp(t),
+                ValueResult::DataString(s) => ValueParam::DataString(s.as_deref()),
+                ValueResult::DataTimestamp(t) => ValueParam::DataTimestamp(t.as_deref()),
             },
         }
     }
@@ -207,11 +207,16 @@ impl<'a> Variable<'a> {
 impl Display for ValueResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValueResult::DataBoolean(b) => write!(f, "{b}"),
-            ValueResult::DataDecimal(d) => write!(f, "{d}"),
-            ValueResult::DataInteger(i) => write!(f, "{i}"),
-            ValueResult::DataString(s) => write!(f, "{s}"),
-            ValueResult::DataTimestamp(s) => write!(f, "{s}"),
+            ValueResult::DataBoolean(None) => write!(f, "<null>"),
+            ValueResult::DataBoolean(Some(b)) => write!(f, "{b}"),
+            ValueResult::DataDecimal(None) => write!(f, "<null>"),
+            ValueResult::DataDecimal(Some(d)) => write!(f, "{d}"),
+            ValueResult::DataInteger(None) => write!(f, "<null>"),
+            ValueResult::DataInteger(Some(i)) => write!(f, "{i}"),
+            ValueResult::DataString(None) => write!(f, "<null>"),
+            ValueResult::DataString(Some(s)) => write!(f, "{s}"),
+            ValueResult::DataTimestamp(None) => write!(f, "<null>"),
+            ValueResult::DataTimestamp(Some(s)) => write!(f, "{s}"),
         }
     }
 }
