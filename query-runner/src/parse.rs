@@ -1,21 +1,24 @@
 //! Parsing utilities.
 
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap, hash::Hash};
 
 use crate::query::*;
 use anyhow::{anyhow, Result};
 
 /// Parse parameters given as strings.
-pub(crate) fn parse_parameter_values<'a>(
+pub fn parse_parameter_values<'a, T>(
     parameters: &'a [Parameter],
-    param_values: &'a HashMap<&str, &str>,
-) -> Result<Vec<VariableParam<'a>>> {
+    param_values: &'a HashMap<T, T>,
+) -> Result<Vec<VariableParam<'a>>>
+where
+    T: Borrow<str> + Eq + Hash,
+{
     let mut values = Vec::new();
     for param in parameters {
         let value = param_values
-            .get(param.name.as_str())
+            .get(&param.name)
             .ok_or(anyhow!("no value provided for parameter `{}`", param.name))?;
-        let value = parse_value(&param.parameter_type, value)?;
+        let value = parse_value(&param.parameter_type, value.borrow())?;
         values.push(VariableParam {
             name: &param.name,
             value,

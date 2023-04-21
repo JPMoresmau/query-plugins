@@ -1,5 +1,5 @@
 [workspace]
-members = ["query-common", "query-runner", "query-runner-bin"]
+members = ["query-common", "query-runner", "query-runner-bin", "query-runner-server"]
 exclude = ["test-collect", "test-collect2"]
 
 [workspace.dependencies]

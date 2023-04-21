@@ -1,0 +1,6 @@
+memory:
+  db: sqlite
+  path: memory
+postgres1:
+  db: postgres
+  config: host=localhost dbname=query_test user=postgres password=password

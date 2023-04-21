@@ -50,7 +50,8 @@ enum PluginSubCommand {
     List,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Connections { subcommand } => match subcommand {
@@ -84,7 +85,7 @@ fn main() -> Result<()> {
                     return Err(anyhow!("{p} is not a valid name=value parameter"));
                 }
             }
-            let res = st.run_untyped(&plugin, &connection, &variables)?;
+            let res = st.run_untyped(&plugin, &connection, &variables).await?;
             match res {
                 None => println!("<no result>"),
                 Some(res) => {

@@ -23,7 +23,7 @@ fn err_module() -> Result<()> {
 fn module_parameters() -> Result<()> {
     let st = test_state()?;
     let m = st.get_plugin("test_collect")?;
-    let params = st.get_parameters(m)?;
+    let params = st.get_metadata(m)?.parameters;
     assert_eq!(1, params.len());
     let p = params.get(0).ok_or(anyhow!("no parameter at index 0"))?;
     assert_eq!("customer_id", &p.name);
@@ -31,15 +31,16 @@ fn module_parameters() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn sqlite_integer() -> Result<()> {
-    integer_result("memory")
+#[tokio::test]
+async fn sqlite_integer() -> Result<()> {
+    integer_result("memory").await
 }
 
-fn integer_result(connection: &str) -> Result<()> {
+async fn integer_result(connection: &str) -> Result<()> {
     let st = test_state()?;
 
     if let DBConnection::SqliteConnection(conn) = st.get_connection(connection)? {
+        let conn = conn.lock().unwrap();
         conn.execute(
             "CREATE TABLE Orders (
                 order_id     INTEGER PRIMARY KEY,
@@ -56,7 +57,8 @@ fn integer_result(connection: &str) -> Result<()> {
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
     let res = st
-        .run_untyped("test_collect", connection, &variables)?
+        .run_untyped("test_collect", connection, &variables)
+        .await?
         .unwrap();
     assert_result(
         &res,
@@ -70,15 +72,16 @@ fn integer_result(connection: &str) -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn sqlite_text() -> Result<()> {
-    result_text("memory")
+#[tokio::test]
+async fn sqlite_text() -> Result<()> {
+    result_text("memory").await
 }
 
-fn result_text(connection: &str) -> Result<()> {
+async fn result_text(connection: &str) -> Result<()> {
     let st = test_state()?;
 
     if let DBConnection::SqliteConnection(conn) = st.get_connection(connection)? {
+        let conn = conn.lock().unwrap();
         conn.execute(
             "CREATE TABLE Orders (
                 order_id     TEXT PRIMARY KEY,
@@ -95,7 +98,8 @@ fn result_text(connection: &str) -> Result<()> {
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
     let res = st
-        .run_untyped("test_collect", connection, &variables)?
+        .run_untyped("test_collect", connection, &variables)
+        .await?
         .unwrap();
     assert_result(
         &res,
@@ -109,15 +113,16 @@ fn result_text(connection: &str) -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn sqlite_bool() -> Result<()> {
-    result_bool("memory")
+#[tokio::test]
+async fn sqlite_bool() -> Result<()> {
+    result_bool("memory").await
 }
 
-fn result_bool(connection: &str) -> Result<()> {
+async fn result_bool(connection: &str) -> Result<()> {
     let st = test_state()?;
 
     if let DBConnection::SqliteConnection(conn) = st.get_connection(connection)? {
+        let conn = conn.lock().unwrap();
         conn.execute(
             "CREATE TABLE Orders (
             order_id     BOOL,
@@ -134,7 +139,8 @@ fn result_bool(connection: &str) -> Result<()> {
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
     let res = st
-        .run_untyped("test_collect", connection, &variables)?
+        .run_untyped("test_collect", connection, &variables)
+        .await?
         .unwrap();
     assert_result(
         &res,
@@ -147,15 +153,16 @@ fn result_bool(connection: &str) -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn sqlite_decimal() -> Result<()> {
-    decimal_result("memory")
+#[tokio::test]
+async fn sqlite_decimal() -> Result<()> {
+    decimal_result("memory").await
 }
 
-fn decimal_result(connection: &str) -> Result<()> {
+async fn decimal_result(connection: &str) -> Result<()> {
     let st = test_state()?;
 
     if let DBConnection::SqliteConnection(conn) = st.get_connection(connection)? {
+        let conn = conn.lock().unwrap();
         conn.execute(
             "CREATE TABLE Orders (
                 order_id     REAL,
@@ -172,7 +179,8 @@ fn decimal_result(connection: &str) -> Result<()> {
     let mut variables = HashMap::new();
     variables.insert("customer_id", "123");
     let res = st
-        .run_untyped("test_collect", connection, &variables)?
+        .run_untyped("test_collect", connection, &variables)
+        .await?
         .unwrap();
     assert_result(
         &res,
@@ -186,20 +194,21 @@ fn decimal_result(connection: &str) -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn sqlite_null_result() -> Result<()> {
-    null_result("memory")
+#[tokio::test]
+async fn sqlite_null_result() -> Result<()> {
+    null_result("memory").await
 }
 
-#[test]
-fn postgres_null_result() -> Result<()> {
-    null_result("postgres1")
+#[tokio::test]
+async fn postgres_null_result() -> Result<()> {
+    null_result("postgres1").await
 }
 
-fn null_result(connection: &str) -> Result<()> {
+async fn null_result(connection: &str) -> Result<()> {
     let st = test_state()?;
 
     if let DBConnection::SqliteConnection(conn) = st.get_connection(connection)? {
+        let conn = conn.lock().unwrap();
         conn.execute(
             "CREATE TABLE Users (
                 username  TEXT PRIMARY KEY,
@@ -222,7 +231,8 @@ fn null_result(connection: &str) -> Result<()> {
     let mut variables = HashMap::new();
     variables.insert("user_name", "john");
     let res = st
-        .run_untyped("test_collect2", connection, &variables)?
+        .run_untyped("test_collect2", connection, &variables)
+        .await?
         .unwrap();
     assert_result(
         &res,
@@ -236,7 +246,8 @@ fn null_result(connection: &str) -> Result<()> {
     let mut variables = HashMap::new();
     variables.insert("user_name", "jane");
     let res = st
-        .run_untyped("test_collect2", connection, &variables)?
+        .run_untyped("test_collect2", connection, &variables)
+        .await?
         .unwrap();
     assert_result(
         &res,

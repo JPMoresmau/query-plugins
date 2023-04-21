@@ -13,7 +13,7 @@ pub struct Query {}
 
 impl crate::query::Query for Query {
     fn metadata() -> QueryMetadata {
-        metadata!("test plugins collecting results",
+        metadata!("test plugin collecting results",
         "user_name" => String)
     }
 

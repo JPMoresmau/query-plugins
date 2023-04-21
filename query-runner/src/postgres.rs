@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
-use postgres::fallible_iterator::FallibleIterator;
-use postgres::types::{ToSql, Type};
-use postgres::{Config, NoTls};
+use futures_util::{pin_mut, TryStreamExt};
 use serde_yaml::Value;
+use tokio_postgres::types::{ToSql, Type};
+use tokio_postgres::{Config, NoTls};
 
 use crate::VariableResult;
 use crate::{
@@ -21,7 +21,10 @@ pub(crate) fn new_connection(value: Value) -> Result<DBConnection> {
 }
 
 /// Execute a query and return the result.
-pub(crate) fn execute(config: &Config, state: &mut ExecutionState) -> Result<Option<QueryResult>> {
+pub(crate) async fn execute(
+    config: &Config,
+    state: &mut ExecutionState,
+) -> Result<Option<QueryResult>> {
     // Get the query SQL.
     let query = state
         .query
@@ -33,14 +36,21 @@ pub(crate) fn execute(config: &Config, state: &mut ExecutionState) -> Result<Opt
 
     let query = positional("$", 1, &query, &params);
 
-    let mut client = config.connect(NoTls)?;
-    let stmt = client.prepare(&query)?;
+    let (client, connection) = config.connect(NoTls).await?;
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    let stmt = client.prepare(&query).await?;
     let columns = stmt.columns();
 
-    let mut it = client.query_raw(&stmt, &params)?;
+    let it = client.query_raw(&stmt, &params).await?;
+    pin_mut!(it);
     // final result.
     let mut result = Option::None;
-    while let Some(row) = it.next()? {
+    while let Some(row) = it.try_next().await? {
         // Build row.
         let mut result_one = Vec::with_capacity(columns.len());
         for (ix, col) in columns.iter().enumerate() {
@@ -81,8 +91,8 @@ impl ToSql for VariableResult {
     fn to_sql(
         &self,
         ty: &Type,
-        out: &mut postgres::types::private::BytesMut,
-    ) -> std::result::Result<postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+        out: &mut tokio_postgres::types::private::BytesMut,
+    ) -> std::result::Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>>
     where
         Self: Sized,
     {
@@ -102,7 +112,7 @@ impl ToSql for VariableResult {
         bool::accepts(ty) || f64::accepts(ty) || i64::accepts(ty) || String::accepts(ty)
     }
 
-    fn encode_format(&self, ty: &Type) -> postgres::types::Format {
+    fn encode_format(&self, ty: &Type) -> tokio_postgres::types::Format {
         match &self.value {
             ValueResult::DataBoolean(b) => b.encode_format(ty),
             ValueResult::DataDecimal(b) => b.encode_format(ty),
@@ -115,8 +125,8 @@ impl ToSql for VariableResult {
     fn to_sql_checked(
         &self,
         ty: &Type,
-        out: &mut postgres::types::private::BytesMut,
-    ) -> std::result::Result<postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+        out: &mut tokio_postgres::types::private::BytesMut,
+    ) -> std::result::Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>>
     {
         match &self.value {
             ValueResult::DataBoolean(b) => b.to_sql_checked(ty, out),

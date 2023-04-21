@@ -1,5 +1,7 @@
 //! SQLLite implementation.
 
+use std::sync::Mutex;
+
 use anyhow::{anyhow, Result};
 use serde_yaml::Value;
 
@@ -17,15 +19,19 @@ pub(crate) fn new_connection(value: Value) -> Result<DBConnection> {
         .as_str()
         .ok_or(anyhow!("path is not a string"))?;
     if path == "memory" {
-        Ok(DBConnection::SqliteConnection(Connection::open_in_memory()?))
+        Ok(DBConnection::SqliteConnection(Mutex::from(
+            Connection::open_in_memory()?,
+        )))
     } else {
-        Ok(DBConnection::SqliteConnection(Connection::open(path)?))
+        Ok(DBConnection::SqliteConnection(Mutex::from(
+            Connection::open(path)?,
+        )))
     }
 }
 
 /// Execute a query and return the result.
 pub(crate) fn execute(
-    connection: &Connection,
+    connection: &Mutex<Connection>,
     state: &mut ExecutionState,
 ) -> Result<Option<QueryResult>> {
     // Get the query SQL.
@@ -39,6 +45,7 @@ pub(crate) fn execute(
 
     let query = positional("?", 1, &query, &params);
 
+    let connection = connection.lock().unwrap();
     // Prepare statement.
     let mut stmt = connection.prepare(&query).map_err(|op| anyhow!(op))?;
     // Bind parameters.
