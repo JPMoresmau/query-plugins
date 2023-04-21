@@ -12,6 +12,7 @@ use query_runner::{parse_parameter_values, Parameter};
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{collections::HashMap, sync::Arc};
+use tower_http::cors::{Any, CorsLayer};
 
 /// State.
 struct AppState {
@@ -24,12 +25,15 @@ pub fn app() -> Result<Router> {
         runner: query_runner::State::load_from_disk()?,
     });
 
+    let cors = CorsLayer::new().allow_origin(Any);
+
     let app = Router::new()
         .route("/connections", get(connections))
         .route("/plugins", get(plugins))
         .route("/plugins/:name", get(plugin_metadata))
         .route("/plugins/:name/:connection", post(plugin_execute))
-        .with_state(runner_state);
+        .with_state(runner_state)
+        .layer(cors);
 
     Ok(app)
 }
