@@ -8,6 +8,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use http::Method;
 use query_runner::{parse_parameter_values, Parameter};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -25,7 +26,8 @@ pub fn app() -> Result<Router> {
         runner: query_runner::State::load_from_disk()?,
     });
 
-    let cors = CorsLayer::new().allow_origin(Any);
+    let cors = CorsLayer::new().allow_origin(Any).allow_methods([Method::GET, Method::POST])
+        .allow_headers(Any);
 
     let app = Router::new()
         .route("/connections", get(connections))
