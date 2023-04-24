@@ -1,35 +1,20 @@
-import React, { useState, useEffect } from "react";
-
-import ConnectionService from "../services/ConnectionService";
 import IConnection from "../types/Connection";
 
-const ConnectionsList: React.FC = () => {
-  const [connections, setConnections] = useState<Array<IConnection>>([]);
+interface ConnectionProps {
+  connections: IConnection[];
+}
 
-  useEffect(() => {
-    retrieveConnections();
-  }, []);
-
-  const retrieveConnections = () => {
-    ConnectionService.getAll()
-      .then((response: any) => {
-        setConnections(response.data);
-      })
-      .catch((e: Error) => {
-        console.log(e);
-      });
-  };
-
+function ConnectionsList(props: ConnectionProps) {
   return (
     <ul>
-      {connections &&
-        connections.map((conn) => (
+      {props.connections &&
+        props.connections.map((conn) => (
           <li key={conn.name}>
             {conn.name} <i>({conn.db_type})</i>
           </li>
         ))}
     </ul>
   );
-};
+}
 
 export default ConnectionsList;

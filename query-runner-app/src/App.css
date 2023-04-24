@@ -23,12 +23,15 @@
 .App-link {
   color: #61dafb;
 }
-
-
+/*
 .row {
   display: flex;
 }
 
 .column {
   flex: 50%;
+}*/
+
+.plugin-description {
+  font-style: italic;
 }

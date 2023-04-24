@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 import PluginService from "../services/PluginService";
 import IPlugin from "../types/Plugin";
@@ -25,7 +26,8 @@ const PluginsList: React.FC = () => {
       {plugins &&
         plugins.map((plugin) => (
           <li key={plugin.name}>
-            {plugin.name}: <i>{plugin.description}</i>
+            <Link to={"/plugins/" + plugin.name}>{plugin.name}</Link>:{" "}
+            <span className="plugin-description">{plugin.description}</span>
           </li>
         ))}
     </ul>
