@@ -1424,6 +1424,7 @@ dependencies = [
  "anyhow",
  "futures-util",
  "llvm-sys",
+ "pin-project",
  "rusqlite",
  "serde",
  "serde_json",
